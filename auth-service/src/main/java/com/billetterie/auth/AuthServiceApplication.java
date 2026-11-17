@@ -17,6 +17,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
  * Base de données: PostgreSQL (auth)
  */
 @SpringBootApplication
+// Active le remplissage automatique des champs d'audit des entités persistées.
 @EnableJpaAuditing
 public class AuthServiceApplication {
 
