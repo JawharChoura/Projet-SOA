@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://billetterie.example/partner/v1"
+           targetNamespace="http://billetterie.example/partner/v1"
+           elementFormDefault="qualified">
+
+    <!-- ========================================= -->
+    <!-- Common Types -->
+    <!-- ========================================= -->
+
+    <xs:simpleType name="DateType">
+        <xs:restriction base="xs:date"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="DateTimeType">
+        <xs:restriction base="xs:dateTime"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="StatutType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="CONFIRMEE"/>
+            <xs:enumeration value="ANNULEE"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ========================================= -->
+    <!-- SearchTrips Operation -->
+    <!-- ========================================= -->
+
+    <xs:element name="SearchTripsRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="origine" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>Ville de départ (ex: Tunis)</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="destination" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>Ville d'arrivée (ex: Sfax)</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="date" type="tns:DateType">
+                    <xs:annotation>
+                        <xs:documentation>Date du voyage</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="SearchTripsResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="trajets" type="tns:TrajetType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="TrajetType">
+        <xs:sequence>
+            <xs:element name="id" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation>Identifiant unique du trajet</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="codePartenaire" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation>Code du trajet chez le partenaire</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="origine" type="xs:string"/>
+            <xs:element name="destination" type="xs:string"/>
+            <xs:element name="departAt" type="tns:DateTimeType">
+                <xs:annotation>
+                    <xs:documentation>Date et heure de départ</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="arriveeAt" type="tns:DateTimeType">
+                <xs:annotation>
+                    <xs:documentation>Date et heure d'arrivée</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="prix" type="xs:decimal">
+                <xs:annotation>
+                    <xs:documentation>Prix en TND</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="placesDisponibles" type="xs:int">
+                <xs:annotation>
+                    <xs:documentation>Nombre de places disponibles</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ========================================= -->
+    <!-- ConfirmBooking Operation -->
+    <!-- ========================================= -->
+
+    <xs:element name="ConfirmBookingRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="trajetId" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>ID du trajet à réserver</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="reservationId" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>ID de la réservation côté booking-service</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="nbPlaces" type="xs:int">
+                    <xs:annotation>
+                        <xs:documentation>Nombre de places à réserver</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="voyageur" type="tns:VoyageurType">
+                    <xs:annotation>
+                        <xs:documentation>Informations du voyageur</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="ConfirmBookingResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partnerRef" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>Référence de réservation chez le partenaire</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="statut" type="tns:StatutType"/>
+                <xs:element name="message" type="xs:string" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>Message de confirmation</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="VoyageurType">
+        <xs:sequence>
+            <xs:element name="nom" type="xs:string"/>
+            <xs:element name="prenom" type="xs:string"/>
+            <xs:element name="email" type="xs:string"/>
+            <xs:element name="telephone" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ========================================= -->
+    <!-- CancelBooking Operation -->
+    <!-- ========================================= -->
+
+    <xs:element name="CancelBookingRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partnerRef" type="xs:string">
+                    <xs:annotation>
+                        <xs:documentation>Référence de réservation à annuler</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="CancelBookingResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="statut" type="tns:StatutType"/>
+                <xs:element name="penalite" type="xs:decimal" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>Pénalité d'annulation en TND</xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="message" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ========================================= -->
+    <!-- SOAP Faults (Errors) -->
+    <!-- ========================================= -->
+
+    <xs:element name="InvalidDateFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="message" type="xs:string"/>
+                <xs:element name="date" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="TripFullFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="message" type="xs:string"/>
+                <xs:element name="trajetId" type="xs:string"/>
+                <xs:element name="placesDisponibles" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="TripNotFoundFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="message" type="xs:string"/>
+                <xs:element name="trajetId" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="BookingNotFoundFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="message" type="xs:string"/>
+                <xs:element name="partnerRef" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="AlreadyCancelledFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="message" type="xs:string"/>
+                <xs:element name="partnerRef" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

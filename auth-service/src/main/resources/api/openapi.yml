@@ -1,0 +1,358 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  description: |
+    API REST du service d'authentification et d'autorisation.
+    
+    Responsabilités:
+    - Inscription des utilisateurs (TRAVELER, ADMIN)
+    - Connexion et émission de JWT
+    - Publication de JWKS pour validation par autres services
+    
+    **Sécurité:** Les endpoints d'inscription et connexion sont publics.
+    Les autres services utilisent le JWKS pour valider les JWT.
+  version: 1.0.0
+  contact:
+    name: Équipe Billetterie Transport
+    email: support@billetterie.example
+
+servers:
+  - url: http://localhost:8081
+    description: Serveur local
+  - url: http://localhost:8080/api/v1/auth
+    description: Via API Gateway
+
+tags:
+  - name: Authentication
+    description: Inscription et connexion
+  - name: JWKS
+    description: Publication des clés publiques JWT
+
+# =========================================
+# Paths
+# =========================================
+
+paths:
+  # =========================================
+  # Authentication
+  # =========================================
+
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Inscription d'un nouvel utilisateur
+      description: |
+        Crée un nouveau compte utilisateur.
+        Par défaut, le rôle TRAVELER est attribué.
+        Le mot de passe est hashé avec BCrypt.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Utilisateur créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Requête invalide (validation échouée)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email déjà utilisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Connexion d'un utilisateur
+      description: |
+        Authentifie un utilisateur avec email et mot de passe.
+        Retourne un JWT valide pour 24 heures.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Email ou mot de passe incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # =========================================
+  # JWKS (JSON Web Key Set)
+  # =========================================
+
+  /.well-known/jwks.json:
+    get:
+      tags:
+        - JWKS
+      summary: Obtenir les clés publiques JWT
+      description: |
+        Endpoint standard JWKS pour permettre aux autres services
+        de valider les JWT sans partager la clé secrète.
+        
+        Utilisé par:
+        - api-gateway
+        - booking-service
+        
+        Format standard: RFC 7517 (JSON Web Key)
+      operationId: getJwks
+      responses:
+        '200':
+          description: Clés publiques JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksResponse'
+
+  # =========================================
+  # Health & Info (Actuator)
+  # =========================================
+
+  /actuator/health:
+    get:
+      tags:
+        - Monitoring
+      summary: Health check
+      description: Vérifier l'état du service
+      operationId: health
+      responses:
+        '200':
+          description: Service opérationnel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [UP, DOWN]
+                    example: UP
+
+# =========================================
+# Components
+# =========================================
+
+components:
+  schemas:
+    # --- Authentication Requests ---
+    
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - nom
+        - prenom
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adresse email (unique)
+          example: "ahmed.ben.ali@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Mot de passe (minimum 8 caractères)
+          example: "MySecurePass123!"
+        nom:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "Ben Ali"
+        prenom:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "Ahmed"
+        telephone:
+          type: string
+          nullable: true
+          pattern: '^\+?[0-9]{8,15}$'
+          example: "+21612345678"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "ahmed.ben.ali@example.com"
+        password:
+          type: string
+          format: password
+          example: "MySecurePass123!"
+
+    # --- Authentication Response ---
+    
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token valide pour 24 heures
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        type:
+          type: string
+          enum: [Bearer]
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          description: Durée de validité en secondes (24h = 86400s)
+          example: 86400
+        user:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          example: "ahmed.ben.ali@example.com"
+        nom:
+          type: string
+          example: "Ben Ali"
+        prenom:
+          type: string
+          example: "Ahmed"
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [TRAVELER, ADMIN]
+          example: ["TRAVELER"]
+
+    # --- JWKS Response ---
+    
+    JwksResponse:
+      type: object
+      description: JSON Web Key Set (RFC 7517)
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/JwkKey'
+
+    JwkKey:
+      type: object
+      description: Clé publique JWT
+      properties:
+        kty:
+          type: string
+          description: Type de clé (RSA, EC, oct)
+          example: "RSA"
+        use:
+          type: string
+          description: Usage (sig = signature)
+          example: "sig"
+        kid:
+          type: string
+          description: Key ID (identifiant de la clé)
+          example: "auth-service-key-1"
+        alg:
+          type: string
+          description: Algorithme (RS256, HS256, etc.)
+          example: "HS256"
+        n:
+          type: string
+          description: Modulus (pour RSA)
+        e:
+          type: string
+          description: Exponent (pour RSA)
+
+    # --- Error Response ---
+    
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-11-15T10:30:00Z"
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: "Bad Request"
+        message:
+          type: string
+          example: "Email déjà utilisé"
+        path:
+          type: string
+          example: "/api/v1/auth/register"
+        errors:
+          type: array
+          description: Détails de validation (si applicable)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "password"
+              message:
+                type: string
+                example: "Le mot de passe doit contenir au moins 8 caractères"
+
+# =========================================
+# Examples
+# =========================================
+
+  examples:
+    RegisterRequestExample:
+      value:
+        email: "ahmed.ben.ali@example.com"
+        password: "MySecurePass123!"
+        nom: "Ben Ali"
+        prenom: "Ahmed"
+        telephone: "+21612345678"
+
+    LoginRequestExample:
+      value:
+        email: "ahmed.ben.ali@example.com"
+        password: "MySecurePass123!"
+
+    AuthResponseExample:
+      value:
+        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        type: "Bearer"
+        expiresIn: 86400
+        user:
+          id: "123e4567-e89b-12d3-a456-426614174000"
+          email: "ahmed.ben.ali@example.com"
+          nom: "Ben Ali"
+          prenom: "Ahmed"
+          roles: ["TRAVELER"]

@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.billetterie.place.grpc";
+option java_outer_classname = "PlaceServiceProto";
+
+package billetterie.place;
+
+// =========================================
+// Place Service - Service gRPC
+// =========================================
+// Gestion des places disponibles par trajet
+// avec retenue temporaire et streaming temps réel
+
+service PlaceService {
+  
+  // Obtenir les places disponibles pour un trajet
+  rpc GetAvailability(GetAvailabilityRequest) returns (GetAvailabilityResponse);
+  
+  // Bloquer des places (retenue de 10 minutes)
+  rpc HoldPlaces(HoldPlacesRequest) returns (HoldPlacesResponse);
+  
+  // Confirmer une retenue (après paiement)
+  rpc ConfirmHold(ConfirmHoldRequest) returns (ConfirmHoldResponse);
+  
+  // Libérer une retenue (annulation ou expiration)
+  rpc ReleasePlaces(ReleasePlacesRequest) returns (ReleasePlacesResponse);
+  
+  // Streaming serveur: flux de disponibilité en temps réel
+  // Le serveur envoie la disponibilité à chaque changement
+  rpc WatchAvailability(WatchAvailabilityRequest) returns (stream AvailabilityUpdate);
+}
+
+// =========================================
+// Messages - GetAvailability
+// =========================================
+
+message GetAvailabilityRequest {
+  string trajet_id = 1;  // ID du trajet
+}
+
+message GetAvailabilityResponse {
+  string trajet_id = 1;
+  int32 capacite_totale = 2;           // Capacité totale du trajet
+  int32 places_disponibles = 3;        // Places actuellement disponibles
+  int64 version = 4;                   // Version pour optimistic locking
+  bool exists = 5;                     // True si le trajet existe
+}
+
+// =========================================
+// Messages - HoldPlaces
+// =========================================
+
+message HoldPlacesRequest {
+  string trajet_id = 1;
+  string reservation_id = 2;           // ID unique de la réservation
+  int32 nb_places = 3;                 // Nombre de places à bloquer
+}
+
+message HoldPlacesResponse {
+  bool success = 4;                    // True si le blocage a réussi
+  string message = 5;                  // Message descriptif
+  int32 places_disponibles = 6;        // Places restantes après blocage
+  string hold_id = 7;                  // ID de la retenue (UUID)
+  int64 expires_at_ms = 8;             // Timestamp d'expiration (epoch ms)
+}
+
+// =========================================
+// Messages - ConfirmHold
+// =========================================
+
+message ConfirmHoldRequest {
+  string reservation_id = 1;           // ID de la réservation à confirmer
+}
+
+message ConfirmHoldResponse {
+  bool success = 1;
+  string message = 2;
+  int32 places_disponibles = 3;        // Places restantes après confirmation
+}
+
+// =========================================
+// Messages - ReleasePlaces
+// =========================================
+
+message ReleasePlacesRequest {
+  string reservation_id = 1;           // ID de la réservation à libérer
+}
+
+message ReleasePlacesResponse {
+  bool success = 1;
+  string message = 2;
+  int32 places_disponibles = 3;        // Places restantes après libération
+}
+
+// =========================================
+// Messages - WatchAvailability (Streaming)
+// =========================================
+
+message WatchAvailabilityRequest {
+  string trajet_id = 1;                // ID du trajet à surveiller
+}
+
+message AvailabilityUpdate {
+  string trajet_id = 1;
+  int32 places_disponibles = 2;
+  int64 timestamp_ms = 3;              // Timestamp du changement (epoch ms)
+  string event_type = 4;               // Type: "HOLD", "CONFIRM", "RELEASE", "HEARTBEAT"
+}
+
+// =========================================
+// Codes d'erreur (via gRPC Status)
+// =========================================
+// INVALID_ARGUMENT: Paramètres invalides (nb_places <= 0)
+// NOT_FOUND: Trajet ou réservation introuvable
+// RESOURCE_EXHAUSTED: Stock insuffisant
+// ALREADY_EXISTS: Retenue déjà créée (idempotence)
+// FAILED_PRECONDITION: Retenue déjà confirmée ou expirée
+// DEADLINE_EXCEEDED: Timeout

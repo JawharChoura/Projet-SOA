@@ -1,0 +1,262 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # PostgreSQL Databases
+  # ===========================================
+  
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth}
+      POSTGRES_USER: ${AUTH_DB_USER:-auth_user}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-auth_user} -d ${AUTH_DB_NAME:-auth}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  booking-db:
+    image: postgres:15-alpine
+    container_name: booking-db
+    environment:
+      POSTGRES_DB: ${BOOKING_DB_NAME:-booking}
+      POSTGRES_USER: ${BOOKING_DB_USER:-booking_user}
+      POSTGRES_PASSWORD: ${BOOKING_DB_PASSWORD:-booking_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - booking-db-data:/var/lib/postgresql/data
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BOOKING_DB_USER:-booking_user} -d ${BOOKING_DB_NAME:-booking}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  place-db:
+    image: postgres:15-alpine
+    container_name: place-db
+    environment:
+      POSTGRES_DB: ${PLACE_DB_NAME:-places}
+      POSTGRES_USER: ${PLACE_DB_USER:-place_user}
+      POSTGRES_PASSWORD: ${PLACE_DB_PASSWORD:-place_password}
+    ports:
+      - "5434:5432"
+    volumes:
+      - place-db-data:/var/lib/postgresql/data
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PLACE_DB_USER:-place_user} -d ${PLACE_DB_NAME:-places}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  partner-db:
+    image: postgres:15-alpine
+    container_name: partner-db
+    environment:
+      POSTGRES_DB: ${PARTNER_DB_NAME:-partner}
+      POSTGRES_USER: ${PARTNER_DB_USER:-partner_user}
+      POSTGRES_PASSWORD: ${PARTNER_DB_PASSWORD:-partner_password}
+    ports:
+      - "5435:5432"
+    volumes:
+      - partner-db-data:/var/lib/postgresql/data
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PARTNER_DB_USER:-partner_user} -d ${PARTNER_DB_NAME:-partner}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Microservices
+  # ===========================================
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ${AUTH_DB_HOST:-auth-db}
+      DB_PORT: ${AUTH_DB_PORT:-5432}
+      DB_NAME: ${AUTH_DB_NAME:-auth}
+      DB_USER: ${AUTH_DB_USER:-auth_user}
+      DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: Dockerfile
+    container_name: booking-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ${BOOKING_DB_HOST:-booking-db}
+      DB_PORT: ${BOOKING_DB_PORT:-5432}
+      DB_NAME: ${BOOKING_DB_NAME:-booking}
+      DB_USER: ${BOOKING_DB_USER:-booking_user}
+      DB_PASSWORD: ${BOOKING_DB_PASSWORD:-booking_password}
+      PLACE_SERVICE_HOST: ${PLACE_SERVICE_HOST:-place-service}
+      PLACE_SERVICE_GRPC_PORT: ${PLACE_SERVICE_GRPC_PORT:-9090}
+      PARTNER_SERVICE_URL: ${PARTNER_SERVICE_URL:-http://partner-service:8084}
+      PARTNER_WSDL_URL: ${PARTNER_WSDL_URL:-http://partner-service:8084/ws/partner?wsdl}
+      JWKS_URL: ${JWKS_URL:-http://auth-service:8081/.well-known/jwks.json}
+      RESERVATION_HOLD_MINUTES: ${RESERVATION_HOLD_MINUTES:-10}
+      MAX_PLACES_PER_RESERVATION: ${MAX_PLACES_PER_RESERVATION:-6}
+      GRPC_CALL_TIMEOUT_MS: ${GRPC_CALL_TIMEOUT_MS:-2000}
+      SOAP_CONNECTION_TIMEOUT_MS: ${SOAP_CONNECTION_TIMEOUT_MS:-3000}
+      SOAP_READ_TIMEOUT_MS: ${SOAP_READ_TIMEOUT_MS:-5000}
+    depends_on:
+      booking-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      place-service:
+        condition: service_healthy
+      partner-service:
+        condition: service_healthy
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  place-service:
+    build:
+      context: ./place-service
+      dockerfile: Dockerfile
+    container_name: place-service
+    ports:
+      - "9090:9090"  # gRPC
+      - "8083:8083"  # HTTP Actuator
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ${PLACE_DB_HOST:-place-db}
+      DB_PORT: ${PLACE_DB_PORT:-5432}
+      DB_NAME: ${PLACE_DB_NAME:-places}
+      DB_USER: ${PLACE_DB_USER:-place_user}
+      DB_PASSWORD: ${PLACE_DB_PASSWORD:-place_password}
+      GRPC_SERVER_PORT: ${PLACE_SERVICE_GRPC_PORT:-9090}
+      HTTP_SERVER_PORT: ${PLACE_SERVICE_HTTP_PORT:-8083}
+    depends_on:
+      place-db:
+        condition: service_healthy
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  partner-service:
+    build:
+      context: ./partner-service
+      dockerfile: Dockerfile
+    container_name: partner-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ${PARTNER_DB_HOST:-partner-db}
+      DB_PORT: ${PARTNER_DB_PORT:-5432}
+      DB_NAME: ${PARTNER_DB_NAME:-partner}
+      DB_USER: ${PARTNER_DB_USER:-partner_user}
+      DB_PASSWORD: ${PARTNER_DB_PASSWORD:-partner_password}
+      PARTNER_MODE: ${PARTNER_MODE:-SIMULATED}
+      PARTNER_EXTERNAL_URL: ${PARTNER_EXTERNAL_URL:-}
+      PARTNER_EXTERNAL_USER: ${PARTNER_EXTERNAL_USER:-}
+      PARTNER_EXTERNAL_PASSWORD: ${PARTNER_EXTERNAL_PASSWORD:-}
+    depends_on:
+      partner-db:
+        condition: service_healthy
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      BOOKING_SERVICE_URL: ${BOOKING_SERVICE_URL:-http://booking-service:8082}
+      JWKS_URL: ${JWKS_URL:-http://auth-service:8081/.well-known/jwks.json}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+    networks:
+      - billetterie-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  billetterie-network:
+    driver: bridge
+    name: billetterie-network
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  auth-db-data:
+    name: auth-db-data
+  booking-db-data:
+    name: booking-db-data
+  place-db-data:
+    name: place-db-data
+  partner-db-data:
+    name: partner-db-data

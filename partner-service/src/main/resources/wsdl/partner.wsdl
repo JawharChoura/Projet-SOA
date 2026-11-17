@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://billetterie.example/partner/v1"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             targetNamespace="http://billetterie.example/partner/v1"
+             name="PartnerService">
+
+    <types>
+        <xsd:schema>
+            <xsd:import namespace="http://billetterie.example/partner/v1"
+                       schemaLocation="../xsd/partner.xsd"/>
+        </xsd:schema>
+    </types>
+
+    <!-- ========================================= -->
+    <!-- Messages -->
+    <!-- ========================================= -->
+
+    <!-- SearchTrips -->
+    <message name="SearchTripsRequest">
+        <part name="parameters" element="tns:SearchTripsRequest"/>
+    </message>
+    <message name="SearchTripsResponse">
+        <part name="parameters" element="tns:SearchTripsResponse"/>
+    </message>
+    <message name="InvalidDateFault">
+        <part name="fault" element="tns:InvalidDateFault"/>
+    </message>
+
+    <!-- ConfirmBooking -->
+    <message name="ConfirmBookingRequest">
+        <part name="parameters" element="tns:ConfirmBookingRequest"/>
+    </message>
+    <message name="ConfirmBookingResponse">
+        <part name="parameters" element="tns:ConfirmBookingResponse"/>
+    </message>
+    <message name="TripFullFault">
+        <part name="fault" element="tns:TripFullFault"/>
+    </message>
+    <message name="TripNotFoundFault">
+        <part name="fault" element="tns:TripNotFoundFault"/>
+    </message>
+
+    <!-- CancelBooking -->
+    <message name="CancelBookingRequest">
+        <part name="parameters" element="tns:CancelBookingRequest"/>
+    </message>
+    <message name="CancelBookingResponse">
+        <part name="parameters" element="tns:CancelBookingResponse"/>
+    </message>
+    <message name="BookingNotFoundFault">
+        <part name="fault" element="tns:BookingNotFoundFault"/>
+    </message>
+    <message name="AlreadyCancelledFault">
+        <part name="fault" element="tns:AlreadyCancelledFault"/>
+    </message>
+
+    <!-- ========================================= -->
+    <!-- Port Type -->
+    <!-- ========================================= -->
+
+    <portType name="PartnerServicePortType">
+        
+        <operation name="SearchTrips">
+            <documentation>
+                Rechercher les trajets disponibles entre deux villes à une date donnée
+            </documentation>
+            <input message="tns:SearchTripsRequest"/>
+            <output message="tns:SearchTripsResponse"/>
+            <fault name="InvalidDateFault" message="tns:InvalidDateFault"/>
+        </operation>
+
+        <operation name="ConfirmBooking">
+            <documentation>
+                Confirmer une réservation auprès du partenaire
+            </documentation>
+            <input message="tns:ConfirmBookingRequest"/>
+            <output message="tns:ConfirmBookingResponse"/>
+            <fault name="TripFullFault" message="tns:TripFullFault"/>
+            <fault name="TripNotFoundFault" message="tns:TripNotFoundFault"/>
+        </operation>
+
+        <operation name="CancelBooking">
+            <documentation>
+                Annuler une réservation auprès du partenaire
+            </documentation>
+            <input message="tns:CancelBookingRequest"/>
+            <output message="tns:CancelBookingResponse"/>
+            <fault name="BookingNotFoundFault" message="tns:BookingNotFoundFault"/>
+            <fault name="AlreadyCancelledFault" message="tns:AlreadyCancelledFault"/>
+        </operation>
+
+    </portType>
+
+    <!-- ========================================= -->
+    <!-- Binding -->
+    <!-- ========================================= -->
+
+    <binding name="PartnerServiceSoapBinding" type="tns:PartnerServicePortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+        <operation name="SearchTrips">
+            <soap:operation soapAction="http://billetterie.example/partner/v1/SearchTrips"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+            <fault name="InvalidDateFault">
+                <soap:fault name="InvalidDateFault" use="literal"/>
+            </fault>
+        </operation>
+
+        <operation name="ConfirmBooking">
+            <soap:operation soapAction="http://billetterie.example/partner/v1/ConfirmBooking"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+            <fault name="TripFullFault">
+                <soap:fault name="TripFullFault" use="literal"/>
+            </fault>
+            <fault name="TripNotFoundFault">
+                <soap:fault name="TripNotFoundFault" use="literal"/>
+            </fault>
+        </operation>
+
+        <operation name="CancelBooking">
+            <soap:operation soapAction="http://billetterie.example/partner/v1/CancelBooking"/>
+            <input>
+                <soap:body use="literal"/>
+            </input>
+            <output>
+                <soap:body use="literal"/>
+            </output>
+            <fault name="BookingNotFoundFault">
+                <soap:fault name="BookingNotFoundFault" use="literal"/>
+            </fault>
+            <fault name="AlreadyCancelledFault">
+                <soap:fault name="AlreadyCancelledFault" use="literal"/>
+            </fault>
+        </operation>
+
+    </binding>
+
+    <!-- ========================================= -->
+    <!-- Service -->
+    <!-- ========================================= -->
+
+    <service name="PartnerService">
+        <documentation>
+            Service SOAP de la compagnie partenaire de transport.
+            Permet de rechercher des trajets, confirmer et annuler des réservations.
+        </documentation>
+        <port name="PartnerServicePort" binding="tns:PartnerServiceSoapBinding">
+            <soap:address location="http://localhost:8084/ws/partner"/>
+        </port>
+    </service>
+
+</definitions>

@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: partner-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:partner}
+    username: ${DB_USER:partner_user}
+    password: ${DB_PASSWORD:partner_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8084}
+  error:
+    include-message: always
+  compression:
+    enabled: true
+
+# SOAP Configuration
+soap:
+  service:
+    path: /ws
+    endpoint: /partner
+    namespace: http://billetterie.example/partner/v1
+    max-message-size: 524288  # 512 KB
+  audit:
+    enabled: true
+
+# Partner Configuration
+partner:
+  mode: ${PARTNER_MODE:SIMULATED}
+  simulated:
+    latency-ms: 300
+  external:
+    url: ${PARTNER_EXTERNAL_URL:}
+    username: ${PARTNER_EXTERNAL_USER:}
+    password: ${PARTNER_EXTERNAL_PASSWORD:}
+    timeout-ms: 5000
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.billetterie.partner: ${LOGGING_LEVEL_COM_BILLETTERIE:DEBUG}
+    org.springframework.ws: DEBUG
+    org.springframework.ws.soap: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+---
+# Profile: docker
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+logging:
+  level:
+    root: INFO
+    com.billetterie.partner: INFO
+    org.springframework.ws: INFO
+    org.springframework.ws.soap: INFO

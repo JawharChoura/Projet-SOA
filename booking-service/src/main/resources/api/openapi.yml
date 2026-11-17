@@ -1,0 +1,447 @@
+openapi: 3.0.3
+info:
+  title: Booking Service API
+  description: |
+    API REST du service de réservation de transport.
+    
+    Responsabilités:
+    - Recherche de trajets (relayée vers partner-service)
+    - Création et gestion de réservations
+    - Émission de billets
+    - Gestion des profils voyageurs
+    
+    **Sécurité:** Toutes les routes (sauf trajets publics) nécessitent un JWT Bearer valide.
+  version: 1.0.0
+  contact:
+    name: Équipe Billetterie Transport
+    email: support@billetterie.example
+
+servers:
+  - url: http://localhost:8082
+    description: Serveur local
+  - url: http://localhost:8080
+    description: Via API Gateway
+
+tags:
+  - name: Trajets
+    description: Recherche de trajets disponibles
+  - name: Réservations
+    description: Gestion des réservations
+  - name: Billets
+    description: Récupération des billets
+  - name: Voyageurs
+    description: Gestion des profils voyageurs
+
+# =========================================
+# Security
+# =========================================
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token émis par auth-service
+
+  # =========================================
+  # Schemas
+  # =========================================
+
+  schemas:
+    # --- Trajet ---
+    TrajetResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "TUN-SFX-20261115-0800"
+        origine:
+          type: string
+          example: "Tunis"
+        destination:
+          type: string
+          example: "Sfax"
+        departAt:
+          type: string
+          format: date-time
+          example: "2026-11-15T08:00:00Z"
+        arriveeAt:
+          type: string
+          format: date-time
+          example: "2026-11-15T11:30:00Z"
+        prix:
+          type: number
+          format: decimal
+          example: 45.50
+        placesDisponibles:
+          type: integer
+          example: 15
+
+    # --- Réservation ---
+    CreateReservationRequest:
+      type: object
+      required:
+        - trajetId
+        - nbPlaces
+      properties:
+        trajetId:
+          type: string
+          example: "TUN-SFX-20261115-0800"
+        nbPlaces:
+          type: integer
+          minimum: 1
+          maximum: 6
+          example: 2
+
+    ReservationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        voyageurId:
+          type: string
+          format: uuid
+        trajetId:
+          type: string
+        nbPlaces:
+          type: integer
+        statut:
+          type: string
+          enum: [EN_ATTENTE, CONFIRMEE, ANNULEE, EXPIREE]
+          example: "EN_ATTENTE"
+        montant:
+          type: number
+          format: decimal
+          example: 91.00
+        holdExpiresAt:
+          type: string
+          format: date-time
+          description: "Expiration de la retenue (10 minutes)"
+          example: "2026-11-15T10:10:00Z"
+        partnerRef:
+          type: string
+          nullable: true
+          description: "Référence chez le partenaire (après confirmation)"
+        createdAt:
+          type: string
+          format: date-time
+
+    ConfirmReservationRequest:
+      type: object
+      properties:
+        paymentMethod:
+          type: string
+          example: "CARD"
+        paymentReference:
+          type: string
+          example: "PAY-123456"
+
+    # --- Billet ---
+    BilletResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reservationId:
+          type: string
+          format: uuid
+        numero:
+          type: string
+          example: "BIL-20261115-001234"
+        qrCode:
+          type: string
+          description: "Code QR en base64"
+        emisLe:
+          type: string
+          format: date-time
+
+    # --- Voyageur ---
+    VoyageurResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: "Référence vers auth-service"
+        nom:
+          type: string
+        prenom:
+          type: string
+        email:
+          type: string
+          format: email
+        telephone:
+          type: string
+          nullable: true
+
+    # --- Error ---
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+
+# =========================================
+# Paths
+# =========================================
+
+paths:
+  # =========================================
+  # Trajets
+  # =========================================
+
+  /api/v1/trajets:
+    get:
+      tags:
+        - Trajets
+      summary: Rechercher des trajets
+      description: Recherche les trajets disponibles entre deux villes à une date donnée (relayé vers partner-service)
+      operationId: searchTrajets
+      security: []  # Public
+      parameters:
+        - name: origine
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "Tunis"
+        - name: destination
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "Sfax"
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2026-11-15"
+      responses:
+        '200':
+          description: Liste des trajets trouvés
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrajetResponse'
+        '400':
+          description: Paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/trajets/{id}/places:
+    get:
+      tags:
+        - Trajets
+      summary: Consulter les places disponibles
+      description: Obtient le nombre de places disponibles pour un trajet (via gRPC place-service)
+      operationId: getPlacesDisponibles
+      security: []  # Public
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Disponibilité du trajet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trajetId:
+                    type: string
+                  placesDisponibles:
+                    type: integer
+        '404':
+          description: Trajet introuvable
+
+  # =========================================
+  # Réservations
+  # =========================================
+
+  /api/v1/reservations:
+    post:
+      tags:
+        - Réservations
+      summary: Créer une réservation
+      description: |
+        Crée une réservation EN_ATTENTE avec retenue de 10 minutes.
+        Bloque les places via place-service (gRPC).
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        '201':
+          description: Réservation créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          description: Requête invalide
+        '409':
+          description: Places insuffisantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reservations/{id}:
+    get:
+      tags:
+        - Réservations
+      summary: Consulter une réservation
+      operationId: getReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Détails de la réservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404':
+          description: Réservation introuvable
+
+    delete:
+      tags:
+        - Réservations
+      summary: Annuler une réservation
+      description: |
+        Annule une réservation (statut ANNULEE).
+        Libère les places via place-service et annule chez le partenaire si confirmée.
+      operationId: cancelReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Réservation annulée
+        '404':
+          description: Réservation introuvable
+        '409':
+          description: Réservation déjà annulée ou expirée
+
+  /api/v1/reservations/{id}/confirm:
+    post:
+      tags:
+        - Réservations
+      summary: Confirmer une réservation
+      description: |
+        Confirme une réservation après paiement (statut CONFIRMEE).
+        Appelle partner-service (SOAP) pour confirmer chez le partenaire.
+        Émet le billet.
+      operationId: confirmReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmReservationRequest'
+      responses:
+        '200':
+          description: Réservation confirmée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404':
+          description: Réservation introuvable
+        '409':
+          description: Réservation expirée ou déjà confirmée
+
+  # =========================================
+  # Billets
+  # =========================================
+
+  /api/v1/reservations/{id}/billet:
+    get:
+      tags:
+        - Billets
+      summary: Récupérer le billet
+      description: Obtient le billet d'une réservation confirmée
+      operationId: getBillet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Billet trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BilletResponse'
+        '404':
+          description: Billet non trouvé (réservation non confirmée)
+
+  # =========================================
+  # Voyageurs
+  # =========================================
+
+  /api/v1/voyageurs/me:
+    get:
+      tags:
+        - Voyageurs
+      summary: Profil du voyageur connecté
+      description: Obtient le profil du voyageur à partir du JWT
+      operationId: getMyProfile
+      responses:
+        '200':
+          description: Profil du voyageur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoyageurResponse'
+        '404':
+          description: Profil non trouvé (créé automatiquement à la première réservation)
