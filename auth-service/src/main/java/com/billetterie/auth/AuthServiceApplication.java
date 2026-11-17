@@ -16,6 +16,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
  * Port: 8081
  * Base de données: PostgreSQL (auth)
  */
+// Main entry point of the authentication service
 @SpringBootApplication
 @EnableJpaAuditing
 public class AuthServiceApplication {

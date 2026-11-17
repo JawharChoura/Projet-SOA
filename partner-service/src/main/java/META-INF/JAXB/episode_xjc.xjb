@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<bindings version="3.0" xmlns="https://jakarta.ee/xml/ns/jaxb">
+  <!--
+
+Ce fichier a été généré par Eclipse Implementation of JAXB, v3.0.0 
+Voir https://eclipse-ee4j.github.io/jaxb-ri 
+Toute modification apportée à ce fichier sera perdue lors de la recompilation du schéma source. 
+Généré le : 2026.11.17 à 03:43:04 PM GMT+01:00 
+
+  -->
+  <bindings scd="x-schema::tns" xmlns:tns="http://billetterie.example/partner/v1">
+    <schemaBindings map="false">
+      <package name="com.billetterie.partner.soap.generated"/>
+    </schemaBindings>
+    <bindings scd="tns:SearchTripsRequest">
+      <class ref="com.billetterie.partner.soap.generated.SearchTripsRequest"/>
+    </bindings>
+    <bindings scd="tns:SearchTripsResponse">
+      <class ref="com.billetterie.partner.soap.generated.SearchTripsResponse"/>
+    </bindings>
+    <bindings scd="~tns:TrajetType">
+      <class ref="com.billetterie.partner.soap.generated.TrajetType"/>
+    </bindings>
+    <bindings scd="tns:ConfirmBookingRequest">
+      <class ref="com.billetterie.partner.soap.generated.ConfirmBookingRequest"/>
+    </bindings>
+    <bindings scd="~tns:VoyageurType">
+      <class ref="com.billetterie.partner.soap.generated.VoyageurType"/>
+    </bindings>
+    <bindings scd="tns:ConfirmBookingResponse">
+      <class ref="com.billetterie.partner.soap.generated.ConfirmBookingResponse"/>
+    </bindings>
+    <bindings scd="tns:CancelBookingRequest">
+      <class ref="com.billetterie.partner.soap.generated.CancelBookingRequest"/>
+    </bindings>
+    <bindings scd="tns:CancelBookingResponse">
+      <class ref="com.billetterie.partner.soap.generated.CancelBookingResponse"/>
+    </bindings>
+    <bindings scd="tns:InvalidDateFault">
+      <class ref="com.billetterie.partner.soap.generated.InvalidDateFault"/>
+    </bindings>
+    <bindings scd="tns:TripFullFault">
+      <class ref="com.billetterie.partner.soap.generated.TripFullFault"/>
+    </bindings>
+    <bindings scd="tns:TripNotFoundFault">
+      <class ref="com.billetterie.partner.soap.generated.TripNotFoundFault"/>
+    </bindings>
+    <bindings scd="tns:BookingNotFoundFault">
+      <class ref="com.billetterie.partner.soap.generated.BookingNotFoundFault"/>
+    </bindings>
+    <bindings scd="tns:AlreadyCancelledFault">
+      <class ref="com.billetterie.partner.soap.generated.AlreadyCancelledFault"/>
+    </bindings>
+    <bindings scd="~tns:StatutType">
+      <typesafeEnumClass ref="com.billetterie.partner.soap.generated.StatutType"/>
+    </bindings>
+  </bindings>
+</bindings>
+
