@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ===========================================
   # PostgreSQL Databases
@@ -129,7 +127,6 @@ services:
       DB_PASSWORD: ${BOOKING_DB_PASSWORD:-booking_password}
       PLACE_SERVICE_HOST: ${PLACE_SERVICE_HOST:-place-service}
       PLACE_SERVICE_GRPC_PORT: ${PLACE_SERVICE_GRPC_PORT:-9090}
-      PARTNER_SERVICE_URL: ${PARTNER_SERVICE_URL:-http://partner-service:8084}
       PARTNER_WSDL_URL: ${PARTNER_WSDL_URL:-http://partner-service:8084/ws/partner?wsdl}
       JWKS_URL: ${JWKS_URL:-http://auth-service:8081/.well-known/jwks.json}
       RESERVATION_HOLD_MINUTES: ${RESERVATION_HOLD_MINUTES:-10}
